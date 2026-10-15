@@ -56,7 +56,8 @@ type CipherConfig struct {
 }
 
 type ResendConfig struct {
-	ApiKey string
+	APIKey string
+	From   string
 }
 
 func Load() (*Config, error) {
@@ -119,7 +120,8 @@ func Load() (*Config, error) {
 			EncryptionKey: viper.GetString("TOKEN_ENCRYPTION_KEY"),
 		},
 		Email: ResendConfig{
-			ApiKey: viper.GetString("RESEND_API_KEY"),
+			APIKey: viper.GetString("RESEND_API_KEY"),
+			From:   viper.GetString("RESEND_FROM_EMAIL"),
 		},
 	}
 
