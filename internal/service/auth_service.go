@@ -72,28 +72,30 @@ func (s *AuthService) Register(ctx context.Context, request *domain.RegisterRequ
 		IsDeleted: false,
 	}
 
-	session, err := s.mongoClient.StartSession()
+	// session, err := s.mongoClient.StartSession()
+	// if err != nil {
+	// 	return nil, fmt.Errorf("auth.Register: start transaction session: %w", err)
+	// }
+	// defer session.EndSession(ctx)
+
+	// _, err = session.WithTransaction(ctx, func(transactionContext context.Context) (any, error) {
+	createdCompany, err := s.companyRepository.Create(ctx, company)
 	if err != nil {
-		return nil, fmt.Errorf("auth.Register: start transaction session: %w", err)
+		return nil, fmt.Errorf("auth.Register: create company: %w", err)
 	}
-	defer session.EndSession(ctx)
 
-	_, err = session.WithTransaction(ctx, func(transactionContext context.Context) (any, error) {
-		createdCompany, err := s.companyRepository.Create(transactionContext, company)
-		if err != nil {
-			return nil, fmt.Errorf("auth.Register: create company: %w", err)
-		}
-
-		createdUser, err := s.userRepository.Create(transactionContext, createdCompany.ID, user)
-		if err != nil {
-			return nil, fmt.Errorf("auth.Register: create admin user: %w", err)
-		}
-
-		return createdUser, nil
-	})
+	createdUser, err := s.userRepository.Create(ctx, createdCompany.ID, user)
 	if err != nil {
-		return nil, fmt.Errorf("auth.Register: transaction: %w", err)
+		// Delete created company
+		s.companyRepository.DeleteByID(ctx, company.ID)
+		return nil, fmt.Errorf("auth.Register: create admin user: %w", err)
 	}
+
+	return createdUser, nil
+	// })
+	// if err != nil {
+	// 	return nil, fmt.Errorf("auth.Register: transaction: %w", err)
+	// }
 
 	// add support of sendind notification email later
 	// if s.mailClient == nil {
@@ -103,7 +105,7 @@ func (s *AuthService) Register(ctx context.Context, request *domain.RegisterRequ
 	// 	return nil, fmt.Errorf("auth.Register: send verification email: %w", err)
 	// }
 
-	return user, nil
+	// return user, nil
 }
 
 func slugify(value string) string {

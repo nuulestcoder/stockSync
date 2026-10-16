@@ -10,6 +10,7 @@ import (
 type CompanyRepository interface {
 	Create(ctx context.Context, company *domain.Company) (*domain.Company, error)
 	GetByID(ctx context.Context, id bson.ObjectID) (*domain.Company, error)
+	DeleteByID(ctx context.Context, id bson.ObjectID) (*domain.Company, error)
 	GetBySlug(ctx context.Context, slug string) (*domain.Company, error)
 	Update(ctx context.Context, id bson.ObjectID, request *domain.UpdateCompanyRequest) (*domain.Company, error)
 	IncrementInvoiceCounter(ctx context.Context, id bson.ObjectID) (int, error)

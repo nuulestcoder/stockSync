@@ -57,6 +57,22 @@ func (r *companyRepository) GetByID(ctx context.Context, id bson.ObjectID) (*dom
 	return &company, nil
 }
 
+func (r *companyRepository) DeleteByID(ctx context.Context, id bson.ObjectID) (*domain.Company, error) {
+	var company domain.Company
+	if err := r.collection.FindOne(ctx, bson.M{"_id": id}).Decode(&company); err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return nil, fmt.Errorf("company.DeleteById: company not found: %w", err)
+		}
+		return nil, fmt.Errorf("company.DeleteById: find company: %w", err)
+	}
+	_, err := r.collection.DeleteOne(ctx, bson.M{"_id": id})
+	if err != nil {
+		return nil, fmt.Errorf("Cannot delete company %s: err: %w", company.Name, err)
+	}
+
+	return &company, nil
+}
+
 func (r *companyRepository) GetBySlug(ctx context.Context, slug string) (*domain.Company, error) {
 	var company domain.Company
 	if err := r.collection.FindOne(ctx, bson.M{"slug": slug}).Decode(&company); err != nil {

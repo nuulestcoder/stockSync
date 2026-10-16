@@ -35,6 +35,5 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		"companyId": user.CompanyID,
 		"email":     user.Email,
 		"role":      user.Role,
-		"message":   "verification email sent",
 	}, "registration successful")
 }
