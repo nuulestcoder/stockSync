@@ -12,6 +12,10 @@ import (
 
 	"github.com/adapolytech/stock-manager/internal/config"
 	"github.com/adapolytech/stock-manager/internal/handler"
+	"github.com/adapolytech/stock-manager/internal/repository"
+	"github.com/adapolytech/stock-manager/internal/routes"
+	"github.com/adapolytech/stock-manager/internal/service"
+	"github.com/adapolytech/stock-manager/pkg/mongoclient"
 	"github.com/gin-gonic/gin"
 )
 
@@ -26,11 +30,31 @@ func main() {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
+	mongoCtx, mongoCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer mongoCancel()
+	mongo, err := mongoclient.New(mongoCtx, cfg.MongoDB.URI, cfg.MongoDB.DB)
+	if err != nil {
+		log.Fatalf("Failed to connect to MongoDB: %v", err)
+	}
+	defer func() {
+		disconnectCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := mongo.Disconnect(disconnectCtx); err != nil {
+			log.Printf("Failed to disconnect from MongoDB: %v", err)
+		}
+	}()
+
+	companyRepository := repository.NewCompanyRepository(mongo.Database())
+	userRepository := repository.NewUserRepository(mongo.Database())
+	authService := service.NewAuthService(companyRepository, userRepository, mongo.Client())
+	authHandler := handler.NewAuthHandler(authService)
+
 	// Create router
 	router := gin.Default()
 
 	// Setup routes
 	setupRoutes(router)
+	routes.SetupAuthRoutes(router, authHandler)
 
 	// Create server
 	srv := &http.Server{
@@ -68,17 +92,4 @@ func main() {
 func setupRoutes(router *gin.Engine) {
 	// Health check (public, no auth required)
 	router.GET("/health", handler.HealthCheck)
-
-	// API v1 routes
-	// v1 := router.Group("/api/v1")
-	{
-		// Auth routes (will be implemented later)
-		// auth := v1.Group("/auth")
-		// {
-		// 	auth.POST("/register", handler.Register)
-		// 	auth.POST("/login", handler.Login)
-		// }
-
-		// Other routes will be added as we implement features
-	}
 }

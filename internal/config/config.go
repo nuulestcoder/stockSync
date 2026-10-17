@@ -2,6 +2,8 @@ package config
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/spf13/viper"
@@ -56,7 +58,8 @@ type CipherConfig struct {
 }
 
 type ResendConfig struct {
-	ApiKey string
+	APIKey string
+	From   string
 }
 
 func Load() (*Config, error) {
@@ -77,12 +80,12 @@ func Load() (*Config, error) {
 
 	_ = viper.ReadInConfig() // Ignore error if .env doesn't exist
 
-	accessTTL, err := time.ParseDuration(viper.GetString("JWT_ACCESS_TTL"))
+	accessTTL, err := parseDuration(viper.GetString("JWT_ACCESS_TTL"))
 	if err != nil {
 		return nil, fmt.Errorf("config: invalid JWT_ACCESS_TTL: %w", err)
 	}
 
-	refreshTTL, err := time.ParseDuration(viper.GetString("JWT_REFRESH_TTL"))
+	refreshTTL, err := parseDuration(viper.GetString("JWT_REFRESH_TTL"))
 	if err != nil {
 		return nil, fmt.Errorf("config: invalid JWT_REFRESH_TTL: %w", err)
 	}
@@ -119,9 +122,23 @@ func Load() (*Config, error) {
 			EncryptionKey: viper.GetString("TOKEN_ENCRYPTION_KEY"),
 		},
 		Email: ResendConfig{
-			ApiKey: viper.GetString("RESEND_API_KEY"),
+			APIKey: viper.GetString("RESEND_API_KEY"),
+			From:   viper.GetString("RESEND_FROM_EMAIL"),
 		},
 	}
 
 	return cfg, nil
+}
+
+func parseDuration(value string) (time.Duration, error) {
+	value = strings.TrimSpace(value)
+	if str, isInDays := strings.CutSuffix(value, "d"); isInDays == true {
+		days, err := strconv.ParseFloat(str, 64)
+		if err != nil {
+			return 0, fmt.Errorf("invalid day duration %q: %w", value, err)
+		}
+		return time.Duration(days * float64(24*time.Hour)), nil
+	}
+
+	return time.ParseDuration(value)
 }

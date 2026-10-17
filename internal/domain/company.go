@@ -61,6 +61,15 @@ type CreateCompanyRequest struct {
 	Plan     string          `json:"plan" binding:"required"` // default: "starter"
 }
 
+// RegisterRequest contains the company and first administrator details.
+type RegisterRequest struct {
+	Company  CreateCompanyRequest `json:"company" binding:"required"`
+	Name     string               `json:"name"     binding:"required"`
+	Email    string               `json:"email"    binding:"required,email"`
+	Phone    string               `json:"phone"`
+	Password string               `json:"password" binding:"required,min=8"`
+}
+
 // UpdateCompanyRequest is the DTO for updating a company
 type UpdateCompanyRequest struct {
 	Name     *string          `json:"name"`
