@@ -78,6 +78,24 @@ func (r *userRepository) GetByEmail(ctx context.Context, companyID bson.ObjectID
 	return &user, nil
 }
 
+func (r *userRepository) GetByEmailForLogin(ctx context.Context, email string) (*domain.User, error) {
+	var user domain.User
+	filter := bson.M{
+		"email":      strings.ToLower(strings.TrimSpace(email)),
+		"is_deleted": bson.M{"$ne": true},
+		"is_active":  true,
+	}
+
+	if err := r.collection.FindOne(ctx, filter).Decode(&user); err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return nil, fmt.Errorf("user.GetByEmailForLogin: user not found: %w", err)
+		}
+		return nil, fmt.Errorf("user.GetByEmailForLogin: find user: %w", err)
+	}
+
+	return &user, nil
+}
+
 func (r *userRepository) List(ctx context.Context, companyID bson.ObjectID) ([]*domain.User, error) {
 	cursor, err := r.collection.Find(ctx, activeUserFilter(companyID), options.Find().SetSort(bson.D{{Key: "created_at", Value: -1}}))
 	if err != nil {
@@ -142,7 +160,7 @@ func (r *userRepository) Update(ctx context.Context, companyID, id bson.ObjectID
 	return &user, nil
 }
 
-func (r *userRepository) Delete(ctx context.Context, companyID, id bson.ObjectID) error {
+func (r *userRepository) SoftDelete(ctx context.Context, companyID, id bson.ObjectID) error {
 	filter := activeUserFilter(companyID)
 	filter["_id"] = id
 

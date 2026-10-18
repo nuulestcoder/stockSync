@@ -201,6 +201,7 @@ type Product struct {
     Images      []string           `bson:"images"        json:"images"`    // generic product photos
     Tags        []string           `bson:"tags"          json:"tags"`
     Variants    []Variant          `bson:"variants"      json:"variants"`
+    IsDeleted   bool               `bson:"is_deleted"    json:"-"`
     CreatedAt   time.Time          `bson:"created_at"    json:"createdAt"`
     UpdatedAt   time.Time          `bson:"updated_at"    json:"updatedAt"`
 }
@@ -435,9 +436,10 @@ db.users.createIndex({ company_id: 1 })
 db.users.createIndex({ email: 1 }, { unique: true })
 
 // products
+db.products.createIndex({ company_id: 1, created_at: -1 })
 db.products.createIndex({ company_id: 1, brand: 1, category: 1 })
 db.products.createIndex({ company_id: 1, tags: 1 })
-db.products.createIndex({ "variants.sku": 1 }, { unique: true })
+db.products.createIndex({ company_id: 1, "variants.sku": 1 }, { unique: true })
 
 // stock — unique per variant within a company
 db.stock.createIndex({ company_id: 1, variant_id: 1 }, { unique: true })
@@ -535,7 +537,7 @@ refunded   → stock.quantity += quantity (RETURN movement)
 - Never store computed margin in DB
 
 ### SKU uniqueness
-- SKU is unique across the **entire** `products` collection (not just per company)
+- SKU is unique within each company
 - Format: `{BRAND}-{MODEL}-{RAM}-{STORAGE}-{COLOR_CODE}` → `MBP-M3-16-512-SG`
 
 ### Social publishing — OAuth flow

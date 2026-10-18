@@ -6,6 +6,15 @@ This file covers build/test commands and key development conventions specific to
 
 ---
 
+# Git and commit instructions
+
+- Do not co-author commits.
+- Never add a `Co-authored-by:` trailer to commit messages.
+- Do not add `Co-authored-by: Copilot` or any similar Copilot attribution.
+- Before creating a commit, verify that the commit message does not contain a `Co-authored-by:` line.
+- Do not modify Git user configuration unless explicitly requested.
+- Use the repository's configured Git author and committer identity.
+
 ## Quick Commands
 
 | Command | Purpose |
@@ -182,14 +191,67 @@ curl http://localhost:8080/health  # Test
 ## Feature Roadmap (v1 scope)
 
 - [x] Project scaffold (config, handlers, services, repositories)
-- [ ] Company tenant management (`internal/domain/company.go`, services, handlers)
-- [ ] User auth (register, login, JWT refresh)
-- [ ] Product catalog (CRUD with variants)
-- [ ] Stock tracking (movement history, alerts)
+- [x] Company tenant management (`internal/domain/company.go`, services, handlers)
+- [x] User auth (register, login, JWT refresh)
+- [x] Product catalog (CRUD with variants, pagination, search, filters, soft deletion)
+- [ ] Stock management (inbound/outbound requests, movement history, alerts, dashboard)
 - [ ] Sales module (invoicing, payment tracking)
 - [ ] Customers & Suppliers
 - [ ] Background jobs (stock alerts, invoice generation)
 - [ ] Social media posting (Facebook/Instagram)
+
+## Stock Module Implementation Details
+
+The stock module manages inventory at the **product variant** level. A product can contain multiple variants, and each variant has its own quantity, reserved quantity, available quantity, minimum stock threshold, location, and optional serial numbers.
+
+### Core capabilities
+
+- **Inbound stock requests** for product replenishment and supplier deliveries.
+- **Outbound stock requests** for sales, damaged items, transfers, adjustments, or other stock decreases.
+- **Stock movement history** recording every inbound, outbound, return, and adjustment operation.
+- **Automatic stock calculations** for quantity, reserved units, available units, and threshold state.
+- **Stock alerts** when a variant is out of stock or reaches its minimum threshold.
+- **Stock dashboard** with:
+  - out-of-stock variants,
+  - variants at or below minimum stock,
+  - total available units,
+  - inbound and outbound movement totals.
+
+### Planned domain model
+
+- `Stock` — current inventory state for one company and product variant.
+- `StockMovement` — immutable record of each inventory change.
+- `StockRequest` — inbound or outbound request with request type, status, items, quantities, reason, reference, and approval/completion metadata.
+
+### Business rules
+
+- Every stock and stock-request record includes `company_id`.
+- Every repository query for stock data must filter by `company_id`.
+- Stock updates must go through a service; handlers must never update quantities directly.
+- An inbound operation increases quantity.
+- An outbound operation decreases quantity only when sufficient available stock exists.
+- Available stock is calculated as `quantity - reserved`.
+- A movement must record the quantity before and after the operation.
+- A movement that causes `available <= threshold` must trigger a stock alert job when background workers are available.
+- Product variants are the source of SKU, pricing, and serial-number identity.
+
+### Planned API surface
+
+```text
+GET  /api/v1/stock
+GET  /api/v1/stock/dashboard
+GET  /api/v1/stock/alerts
+GET  /api/v1/stock/:variantId
+GET  /api/v1/stock/:variantId/movements
+POST /api/v1/stock/requests/inbound
+POST /api/v1/stock/requests/outbound
+GET  /api/v1/stock/requests
+GET  /api/v1/stock/requests/:id
+POST /api/v1/stock/:variantId/move
+```
+
+The implementation should be delivered in this order: product and variant catalog, stock domain types, stock repositories, stock service and movement rules, request handlers, dashboard aggregation, then background alerts.
+
 
 ---
 

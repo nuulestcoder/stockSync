@@ -46,8 +46,20 @@ func main() {
 
 	companyRepository := repository.NewCompanyRepository(mongo.Database())
 	userRepository := repository.NewUserRepository(mongo.Database())
-	authService := service.NewAuthService(companyRepository, userRepository, mongo.Client())
+	productRepository := repository.NewProductRepository(mongo.Database())
+	indexContext, indexCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	if err := repository.EnsureProductIndexes(indexContext, mongo.Database()); err != nil {
+		indexCancel()
+		log.Fatalf("Failed to create product indexes: %v", err)
+	}
+	indexCancel()
+	authService := service.NewAuthService(companyRepository, userRepository, mongo.Client(), service.JWTConfig{
+		AccessSecret: cfg.JWT.AccessSecret, RefreshSecret: cfg.JWT.RefreshSecret,
+		AccessTTL: cfg.JWT.AccessTTL, RefreshTTL: cfg.JWT.RefreshTTL,
+	})
 	authHandler := handler.NewAuthHandler(authService)
+	productService := service.NewProductService(productRepository)
+	productHandler := handler.NewProductHandler(productService)
 
 	// Create router
 	router := gin.Default()
@@ -55,6 +67,7 @@ func main() {
 	// Setup routes
 	setupRoutes(router)
 	routes.SetupAuthRoutes(router, authHandler)
+	routes.SetupProductRoutes(router, productHandler, cfg.JWT.AccessSecret)
 
 	// Create server
 	srv := &http.Server{

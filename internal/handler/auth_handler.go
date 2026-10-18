@@ -37,3 +37,35 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		"role":      user.Role,
 	}, "registration successful")
 }
+
+func (h *AuthHandler) Login(c *gin.Context) {
+	var request domain.LoginRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		response.Error(c, http.StatusBadRequest, "invalid login request")
+		return
+	}
+
+	result, err := h.authService.Login(c.Request.Context(), &request)
+	if err != nil {
+		response.Error(c, http.StatusUnauthorized, "invalid credentials")
+		return
+	}
+
+	response.Success(c, http.StatusOK, result, "login successful")
+}
+
+func (h *AuthHandler) Refresh(c *gin.Context) {
+	var request domain.RefreshTokenRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		response.Error(c, http.StatusBadRequest, "invalid refresh token request")
+		return
+	}
+
+	result, err := h.authService.Refresh(c.Request.Context(), &request)
+	if err != nil {
+		response.Error(c, http.StatusUnauthorized, "invalid or expired refresh token")
+		return
+	}
+
+	response.Success(c, http.StatusOK, result, "token refreshed successfully")
+}
