@@ -14,7 +14,7 @@ type Config struct {
 	MongoDB MongoDBConfig
 	Redis   RedisConfig
 	JWT     JWTConfig
-	R2      R2Config
+	Storage StorageConfig
 	Asynq   AsynqConfig
 	Cipher  CipherConfig
 	Email   ResendConfig
@@ -41,11 +41,19 @@ type JWTConfig struct {
 	RefreshTTL    time.Duration
 }
 
+type StorageConfig struct {
+	Mode      string
+	UploadDir string
+	PublicURL string
+	R2        R2Config
+}
+
 type R2Config struct {
 	Endpoint  string
 	Bucket    string
 	AccessKey string
 	SecretKey string
+	PublicURL string
 }
 
 type AsynqConfig struct {
@@ -77,6 +85,8 @@ func Load() (*Config, error) {
 	viper.SetDefault("JWT_ACCESS_TTL", "15m")
 	viper.SetDefault("JWT_REFRESH_TTL", "7d")
 	viper.SetDefault("ASYNQ_CONCURRENCY", 10)
+	viper.SetDefault("STORAGE_MODE", "local")
+	viper.SetDefault("UPLOAD_DIR", "./uploads")
 
 	_ = viper.ReadInConfig() // Ignore error if .env doesn't exist
 
@@ -108,11 +118,17 @@ func Load() (*Config, error) {
 			AccessTTL:     accessTTL,
 			RefreshTTL:    refreshTTL,
 		},
-		R2: R2Config{
-			Endpoint:  viper.GetString("R2_ENDPOINT"),
-			Bucket:    viper.GetString("R2_BUCKET"),
-			AccessKey: viper.GetString("R2_ACCESS_KEY"),
-			SecretKey: viper.GetString("R2_SECRET_KEY"),
+		Storage: StorageConfig{
+			Mode:      viper.GetString("STORAGE_MODE"),
+			UploadDir: viper.GetString("UPLOAD_DIR"),
+			PublicURL: viper.GetString("UPLOAD_PUBLIC_URL"),
+			R2: R2Config{
+				Endpoint:  viper.GetString("R2_ENDPOINT"),
+				Bucket:    viper.GetString("R2_BUCKET"),
+				AccessKey: viper.GetString("R2_ACCESS_KEY"),
+				SecretKey: viper.GetString("R2_SECRET_KEY"),
+				PublicURL: viper.GetString("R2_PUBLIC_URL"),
+			},
 		},
 		Asynq: AsynqConfig{
 			RedisURL:    viper.GetString("ASYNQ_REDIS_URL"),

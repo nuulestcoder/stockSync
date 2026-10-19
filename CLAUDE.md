@@ -722,6 +722,14 @@ TOKEN_ENCRYPTION_KEY=            # 32-byte hex key for AES-256-GCM token encrypt
 - Use `context.Context` as first param on all repository and service methods
 - All MongoDB writes touching multiple collections use `WithTransaction`
 
+## File Uploads
+
+- `POST /api/v1/uploads/single` accepts one image in the `file` multipart field.
+- `POST /api/v1/uploads/multiple` accepts images in the `files` multipart field.
+- Uploads require JWT authentication and are stored under the authenticated `company_id`.
+- Supported formats are JPEG, PNG, GIF, and WebP; each file is limited to 10 MB.
+- `STORAGE_MODE=local` serves files from `UPLOAD_DIR`; `STORAGE_MODE=r2` stores them in Cloudflare R2.
+
 ---
 
 ## Testing

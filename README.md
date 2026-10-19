@@ -155,9 +155,15 @@ ASYNQ_CONCURRENCY=10
 JWT_ACCESS_SECRET=change_me
 JWT_REFRESH_SECRET=change_me
 
-# File Storage (Cloudflare R2)
+# File Storage
+STORAGE_MODE=local             # local or r2
+UPLOAD_DIR=./uploads            # local mode
+UPLOAD_PUBLIC_URL=
 R2_ENDPOINT=https://...
+R2_BUCKET=saas-stock-assets
 R2_ACCESS_KEY=...
+R2_SECRET_KEY=...
+R2_PUBLIC_URL=
 
 # Token Encryption
 TOKEN_ENCRYPTION_KEY=...  # 32-byte hex key
