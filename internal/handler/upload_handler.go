@@ -28,11 +28,10 @@ func NewUploadHandler(store storage.Store) *UploadHandler {
 }
 
 func (h *UploadHandler) Single(c *gin.Context) {
-	// companyID, ok := companyIDFromContext(c)
-	// if !ok {
-	// 	return
-	// }
-	companyID, _ := bson.ObjectIDFromHex("6ad17dcb8455c5c279d00f36")
+	companyID, ok := companyIDFromContext(c)
+	if !ok {
+		return
+	}
 	file, err := c.FormFile(fileField)
 	if err != nil {
 		response.Error(c, http.StatusBadRequest, "a file is required")
