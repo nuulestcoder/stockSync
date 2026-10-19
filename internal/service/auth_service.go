@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"net/mail"
 	"strings"
+	"time"
 
 	"github.com/adapolytech/stock-manager/internal/domain"
 	"github.com/adapolytech/stock-manager/internal/repository"
+	"github.com/adapolytech/stock-manager/pkg/jwt"
 	"github.com/adapolytech/stock-manager/pkg/password"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 )
@@ -16,19 +18,100 @@ type AuthService struct {
 	companyRepository repository.CompanyRepository
 	userRepository    repository.UserRepository
 	mongoClient       *mongo.Client
-	mailFrom          string
+	jwtConfig         JWTConfig
+}
+
+type JWTConfig struct {
+	AccessSecret  string
+	RefreshSecret string
+	AccessTTL     time.Duration
+	RefreshTTL    time.Duration
 }
 
 func NewAuthService(
 	companyRepository repository.CompanyRepository,
 	userRepository repository.UserRepository,
 	mongoClient *mongo.Client,
+	jwtConfig JWTConfig,
 ) *AuthService {
 	return &AuthService{
 		companyRepository: companyRepository,
 		userRepository:    userRepository,
 		mongoClient:       mongoClient,
+		jwtConfig:         jwtConfig,
 	}
+}
+
+func (s *AuthService) Login(ctx context.Context, request *domain.LoginRequest) (*domain.LoginResponse, error) {
+	if request == nil {
+		return nil, fmt.Errorf("auth.Login: request is required")
+	}
+
+	user, err := s.userRepository.GetByEmailForLogin(ctx, strings.ToLower(strings.TrimSpace(request.Email)))
+	if err != nil {
+		return nil, fmt.Errorf("auth.Login: find user: %w", err)
+	}
+
+	matches, err := password.Compare(request.Password, user.Password)
+	if err != nil {
+		return nil, fmt.Errorf("auth.Login: compare password: %w", err)
+	}
+	if !matches {
+		return nil, fmt.Errorf("auth.Login: invalid credentials")
+	}
+
+	tokens, err := s.issueTokens(user)
+	if err != nil {
+		return nil, fmt.Errorf("auth.Login: issue tokens: %w", err)
+	}
+
+	return tokens, nil
+}
+
+func (s *AuthService) Refresh(ctx context.Context, request *domain.RefreshTokenRequest) (*domain.LoginResponse, error) {
+	if request == nil || strings.TrimSpace(request.RefreshToken) == "" {
+		return nil, fmt.Errorf("auth.Refresh: refresh token is required")
+	}
+
+	claims, err := jwt.ParseRefreshToken(strings.TrimSpace(request.RefreshToken), s.jwtConfig.RefreshSecret)
+	if err != nil {
+		return nil, fmt.Errorf("auth.Refresh: parse refresh token: %w", err)
+	}
+
+	user, err := s.userRepository.GetByID(ctx, claims.CompanyID, claims.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("auth.Refresh: find user: %w", err)
+	}
+	if !user.IsActive || user.IsDeleted {
+		return nil, fmt.Errorf("auth.Refresh: user is inactive")
+	}
+
+	tokens, err := s.issueTokens(user)
+	if err != nil {
+		return nil, fmt.Errorf("auth.Refresh: issue tokens: %w", err)
+	}
+
+	return tokens, nil
+}
+
+func (s *AuthService) issueTokens(user *domain.User) (*domain.LoginResponse, error) {
+	accessToken, err := jwt.GenerateAccessToken(user.ID, user.CompanyID, user.Role, s.jwtConfig.AccessSecret, s.jwtConfig.AccessTTL)
+	if err != nil {
+		return nil, fmt.Errorf("generate access token: %w", err)
+	}
+
+	refreshToken, err := jwt.GenerateRefreshToken(user.ID, user.CompanyID, user.Role, s.jwtConfig.RefreshSecret, s.jwtConfig.RefreshTTL)
+	if err != nil {
+		return nil, fmt.Errorf("generate refresh token: %w", err)
+	}
+
+	return &domain.LoginResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		User: domain.UserSummary{
+			ID: user.ID, CompanyID: user.CompanyID, Name: user.Name, Email: user.Email, Role: user.Role,
+		},
+	}, nil
 }
 
 func (s *AuthService) Register(ctx context.Context, request *domain.RegisterRequest) (*domain.User, error) {

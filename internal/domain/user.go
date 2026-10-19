@@ -58,3 +58,26 @@ type UpdateUserRequest struct {
 	Role     *UserRole `json:"role"     binding:"omitempty,oneof=ADMIN MANAGER SELLER"`
 	IsActive *bool     `json:"isActive"`
 }
+
+type LoginRequest struct {
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required"`
+}
+
+type RefreshTokenRequest struct {
+	RefreshToken string `json:"refreshToken" binding:"required"`
+}
+
+type LoginResponse struct {
+	AccessToken  string      `json:"accessToken"`
+	RefreshToken string      `json:"refreshToken"`
+	User         UserSummary `json:"user"`
+}
+
+type UserSummary struct {
+	ID        bson.ObjectID `json:"id"`
+	CompanyID bson.ObjectID `json:"companyId"`
+	Name      string        `json:"name"`
+	Email     string        `json:"email"`
+	Role      UserRole      `json:"role"`
+}
