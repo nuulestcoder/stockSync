@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/adapolytech/stock-manager/internal/routes"
 	"github.com/adapolytech/stock-manager/internal/service"
 	"github.com/adapolytech/stock-manager/pkg/mongoclient"
+	"github.com/adapolytech/stock-manager/pkg/storage"
 	"github.com/gin-gonic/gin"
 )
 
@@ -28,6 +30,17 @@ func main() {
 	// Set Gin mode based on environment
 	if cfg.App.Env == "production" {
 		gin.SetMode(gin.ReleaseMode)
+	}
+	uploadStore, err := storage.New(context.Background(), storage.Config{
+		Mode: cfg.Storage.Mode, UploadDir: cfg.Storage.UploadDir, PublicURL: cfg.Storage.PublicURL,
+		R2: storage.R2Config{
+			Endpoint: cfg.Storage.R2.Endpoint, Bucket: cfg.Storage.R2.Bucket,
+			AccessKey: cfg.Storage.R2.AccessKey, SecretKey: cfg.Storage.R2.SecretKey,
+			PublicURL: cfg.Storage.R2.PublicURL,
+		},
+	})
+	if err != nil {
+		log.Fatalf("Failed to initialize file storage: %v", err)
 	}
 
 	mongoCtx, mongoCancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -60,14 +73,20 @@ func main() {
 	authHandler := handler.NewAuthHandler(authService)
 	productService := service.NewProductService(productRepository)
 	productHandler := handler.NewProductHandler(productService)
+	uploadHandler := handler.NewUploadHandler(uploadStore)
 
 	// Create router
 	router := gin.Default()
+	router.MaxMultipartMemory = 32 << 20
+	if strings.EqualFold(cfg.Storage.Mode, "") || strings.EqualFold(cfg.Storage.Mode, "local") {
+		router.Static("/uploads", cfg.Storage.UploadDir)
+	}
 
 	// Setup routes
 	setupRoutes(router)
 	routes.SetupAuthRoutes(router, authHandler)
 	routes.SetupProductRoutes(router, productHandler, cfg.JWT.AccessSecret)
+	routes.SetupUploadRoutes(router, uploadHandler, cfg.JWT.AccessSecret)
 
 	// Create server
 	srv := &http.Server{
