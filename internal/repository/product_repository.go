@@ -74,6 +74,23 @@ func (r *productRepository) GetByID(ctx context.Context, companyID, id bson.Obje
 	return &product, nil
 }
 
+func (r *productRepository) GetByVariant(ctx context.Context, companyID, variantID bson.ObjectID) (*domain.Product, error) {
+	var product domain.Product
+	query := bson.M{
+		"company_id":   companyID,
+		"_id":          bson.M{"$exists": true},
+		"is_deleted":   bson.M{"$ne": true},
+		"variants._id": variantID,
+	}
+	if err := r.collection.FindOne(ctx, query).Decode(&product); err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return nil, fmt.Errorf("product.GetByVariant: product not found: %w", err)
+		}
+		return nil, fmt.Errorf("product.GetByVariant: find product: %w", err)
+	}
+	return &product, nil
+}
+
 func (r *productRepository) List(ctx context.Context, companyID bson.ObjectID, filter ProductFilter) (*ProductListResult, error) {
 	query := bson.M{"company_id": companyID, "is_deleted": bson.M{"$ne": true}}
 	conditions := bson.A{}
