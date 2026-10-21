@@ -507,12 +507,23 @@ companyID := c.MustGet("companyID").(primitive.ObjectID)
 - Never generate invoice numbers manually in handlers
 
 ### Stock updates
-- **Never** update `stock.quantity` directly from a handler
+- **Never** update `stock.quantity` directly from a handler.
 - Always go through `StockService.Move()` which:
-  1. Inserts a `StockMovement` document
-  2. Updates `stock.quantity`, `stock.available`, and `stock.last_movement`
-  3. Triggers a reorder alert job if `available <= threshold`
-- When a sale is confirmed, `StockService.Move()` is called for each item with type `OUT`
+  1. Validates the product variant belongs to the authenticated company.
+  2. Inserts a `StockMovement` document.
+  3. Updates `stock.quantity`, `stock.available`, and `stock.last_movement`.
+  4. Rejects `OUT` movements when available stock is insufficient.
+- `available` is always calculated as `quantity - reserved`.
+- `IN` and `RETURN` increase quantity; `OUT` decreases quantity; `ADJUSTMENT` sets the target quantity.
+- Serial-number tracking is deferred for the MVP.
+- When a sale or approved stock request is completed, `StockService.Move()` is called for each item.
+
+### Stock request lifecycle
+- New inbound and outbound requests start as `pending`.
+- `pending` requests may be `approved`, `rejected`, or `cancelled`.
+- Only an `approved` request can become `processing` and then `completed`.
+- Completion applies the corresponding stock movement for every request item.
+- `completed`, `rejected`, and `cancelled` requests are terminal and cannot be processed again.
 
 ### Sale → Stock lifecycle
 ```
@@ -625,9 +636,17 @@ DELETE /api/v1/products/:id/variants/:variantId
 # Stock
 GET    /api/v1/stock                   # all stock (filterable)
 GET    /api/v1/stock/alerts            # items below threshold
+GET    /api/v1/stock/dashboard         # aggregate stock metrics and recent movements
 GET    /api/v1/stock/:variantId
-POST   /api/v1/stock/:variantId/move   # IN | OUT | RETURN | ADJUSTMENT
 GET    /api/v1/stock/:variantId/movements
+POST   /api/v1/stock/:variantId/move   # IN | OUT | RETURN | ADJUSTMENT
+POST   /api/v1/stock/requests/inbound
+POST   /api/v1/stock/requests/outbound
+GET    /api/v1/stock/requests
+POST   /api/v1/stock/requests/:id/approve
+POST   /api/v1/stock/requests/:id/reject
+POST   /api/v1/stock/requests/:id/cancel
+POST   /api/v1/stock/requests/:id/complete
 
 # Sales
 GET    /api/v1/sales

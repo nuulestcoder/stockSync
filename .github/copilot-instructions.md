@@ -194,7 +194,7 @@ curl http://localhost:8080/health  # Test
 - [x] Company tenant management (`internal/domain/company.go`, services, handlers)
 - [x] User auth (register, login, JWT refresh)
 - [x] Product catalog (CRUD with variants, pagination, search, filters, soft deletion)
-- [ ] Stock management (inbound/outbound requests, movement history, alerts, dashboard)
+- [x] Stock management (inbound/outbound requests, movement history, alerts, dashboard)
 - [ ] Sales module (invoicing, payment tracking)
 - [ ] Customers & Suppliers
 - [ ] Background jobs (stock alerts, invoice generation)
@@ -215,7 +215,8 @@ The stock module manages inventory at the **product variant** level. A product c
   - out-of-stock variants,
   - variants at or below minimum stock,
   - total available units,
-  - inbound and outbound movement totals.
+  - inbound and outbound movement totals,
+  - recent movements.
 
 ### Planned domain model
 
@@ -234,6 +235,9 @@ The stock module manages inventory at the **product variant** level. A product c
 - A movement must record the quantity before and after the operation.
 - A movement that causes `available <= threshold` must trigger a stock alert job when background workers are available.
 - Product variants are the source of SKU, pricing, and serial-number identity.
+- Stock requests start as `pending`, may be `approved`, `rejected`, or `cancelled`, and only an approved request can be completed.
+- Completing a request applies one `IN` movement per inbound item or one `OUT` movement per outbound item.
+- Completed, rejected, and cancelled requests are terminal and cannot be processed again.
 
 ### Planned API surface
 
@@ -246,11 +250,14 @@ GET  /api/v1/stock/:variantId/movements
 POST /api/v1/stock/requests/inbound
 POST /api/v1/stock/requests/outbound
 GET  /api/v1/stock/requests
-GET  /api/v1/stock/requests/:id
 POST /api/v1/stock/:variantId/move
+POST /api/v1/stock/requests/:id/approve
+POST /api/v1/stock/requests/:id/reject
+POST /api/v1/stock/requests/:id/cancel
+POST /api/v1/stock/requests/:id/complete
 ```
 
-The implementation should be delivered in this order: product and variant catalog, stock domain types, stock repositories, stock service and movement rules, request handlers, dashboard aggregation, then background alerts.
+The stock domain, repositories, movement service, request workflow, handlers, routes, dashboard aggregation, and startup wiring are implemented. Background alert jobs remain pending.
 
 
 ---

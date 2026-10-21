@@ -14,6 +14,8 @@ tags:
   - name: System
   - name: Authentication
   - name: Products
+  - name: Stock
+  - name: Sales
   - name: Uploads
 paths:
   /health:
@@ -365,6 +367,476 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
+  /api/v1/sales:
+    get:
+      tags: [Sales]
+      summary: List sales
+      operationId: listSales
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Limit"
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, confirmed, paid, cancelled, refunded]
+      responses:
+        "200":
+          description: Sales retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SaleListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [Sales]
+      summary: Create a draft sale
+      description: Creates a sale without processing payment. New sales start in draft status.
+      operationId: createSale
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSaleRequest"
+      responses:
+        "201":
+          description: Sale created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SaleResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/v1/sales/dashboard:
+    get:
+      tags: [Sales]
+      summary: Get sales dashboard metrics
+      operationId: getSalesDashboard
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReportFrom"
+        - $ref: "#/components/parameters/ReportTo"
+      responses:
+        "200":
+          description: Sales dashboard retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SaleDashboardResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/sales/reports:
+    get:
+      tags: [Sales]
+      summary: Get sales reports
+      description: Returns the same aggregated sales reporting data as the sales dashboard.
+      operationId: getSalesReports
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReportFrom"
+        - $ref: "#/components/parameters/ReportTo"
+      responses:
+        "200":
+          description: Sales reports retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SaleDashboardResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/sales/{id}:
+    parameters:
+      - $ref: "#/components/parameters/SaleID"
+    get:
+      tags: [Sales]
+      summary: Get a sale
+      operationId: getSale
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Sale retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SaleResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/sales/{id}/status:
+    parameters:
+      - $ref: "#/components/parameters/SaleID"
+    put:
+      tags: [Sales]
+      summary: Transition a sale status
+      description: >
+        Managers and administrators can confirm, mark paid, cancel, or refund a sale.
+        Status transitions reserve, consume, release, or return stock as appropriate.
+        Payment processing itself is not implemented in the MVP.
+      operationId: updateSaleStatus
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSaleStatusRequest"
+      responses:
+        "200":
+          description: Sale status updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SaleResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/stock:
+    get:
+      tags: [Stock]
+      summary: List stock records
+      operationId: listStock
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Limit"
+        - name: location
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Stock retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/stock/alerts:
+    get:
+      tags: [Stock]
+      summary: List low-stock records
+      operationId: listStockAlerts
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Stock alerts retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/stock/dashboard:
+    get:
+      tags: [Stock]
+      summary: Get stock dashboard metrics
+      operationId: getStockDashboard
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Stock dashboard retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockDashboardResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/stock/{variantId}:
+    parameters:
+      - $ref: "#/components/parameters/VariantID"
+    get:
+      tags: [Stock]
+      summary: Get stock for a variant
+      operationId: getVariantStock
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Stock retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/stock/{variantId}/movements:
+    parameters:
+      - $ref: "#/components/parameters/VariantID"
+    get:
+      tags: [Stock]
+      summary: List movements for a variant
+      operationId: listVariantStockMovements
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Stock movements retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockMovementListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/stock/{variantId}/move:
+    parameters:
+      - $ref: "#/components/parameters/VariantID"
+    post:
+      tags: [Stock]
+      summary: Apply an immediate stock movement
+      description: Requires ADMIN or MANAGER role. Serial numbers are reserved for a future implementation.
+      operationId: moveStock
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MoveStockRequest"
+      responses:
+        "200":
+          description: Stock movement applied successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockMoveResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/v1/stock/requests:
+    get:
+      tags: [Stock]
+      summary: List stock requests
+      operationId: listStockRequests
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Limit"
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [INBOUND, OUTBOUND]
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, approved, processing, completed, cancelled, rejected]
+      responses:
+        "200":
+          description: Stock requests retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockRequestListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/stock/requests/inbound:
+    post:
+      tags: [Stock]
+      summary: Create an inbound stock request
+      description: Creates a pending request. Managers or admins can approve and complete it.
+      operationId: createInboundStockRequest
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateStockRequest"
+            example:
+              type: INBOUND
+              reason: Supplier delivery
+              reference: PO-2026-001
+              items:
+                - productId: 507f1f77bcf86cd799439011
+                  variantId: 507f1f77bcf86cd799439012
+                  quantity: 10
+      responses:
+        "201":
+          description: Stock request created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockRequestResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/stock/requests/outbound:
+    post:
+      tags: [Stock]
+      summary: Create an outbound stock request
+      description: Creates a pending request. Sellers, managers, or admins can create outbound requests.
+      operationId: createOutboundStockRequest
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateStockRequest"
+            example:
+              type: OUTBOUND
+              reason: Customer sale
+              reference: SALE-2026-001
+              items:
+                - productId: 507f1f77bcf86cd799439011
+                  variantId: 507f1f77bcf86cd799439012
+                  quantity: 1
+      responses:
+        "201":
+          description: Stock request created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockRequestResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/stock/requests/{id}/approve:
+    parameters:
+      - $ref: "#/components/parameters/RequestID"
+    post:
+      tags: [Stock]
+      summary: Approve a stock request
+      description: Requires ADMIN or MANAGER role. Only pending requests can be approved.
+      operationId: approveStockRequest
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Stock request approved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockRequestResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/v1/stock/requests/{id}/reject:
+    parameters:
+      - $ref: "#/components/parameters/RequestID"
+    post:
+      tags: [Stock]
+      summary: Reject a stock request
+      description: Requires ADMIN or MANAGER role. Only pending requests can be rejected.
+      operationId: rejectStockRequest
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Stock request rejected successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockRequestResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/v1/stock/requests/{id}/cancel:
+    parameters:
+      - $ref: "#/components/parameters/RequestID"
+    post:
+      tags: [Stock]
+      summary: Cancel a stock request
+      description: Cancelling a completed, rejected, or already cancelled request is not allowed.
+      operationId: cancelStockRequest
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Stock request cancelled successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockRequestResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /api/v1/stock/requests/{id}/complete:
+    parameters:
+      - $ref: "#/components/parameters/RequestID"
+    post:
+      tags: [Stock]
+      summary: Complete a stock request
+      description: Requires ADMIN or MANAGER role. Completion applies IN or OUT movements for every item and is allowed only after approval.
+      operationId: completeStockRequest
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Stock request completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockRequestResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
 components:
   securitySchemes:
     bearerAuth:
@@ -394,6 +866,41 @@ components:
         type: integer
         minimum: 1
         default: 20
+    VariantID:
+      name: variantId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^[a-fA-F0-9]{24}$"
+    RequestID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^[a-fA-F0-9]{24}$"
+    SaleID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^[a-fA-F0-9]{24}$"
+    ReportFrom:
+      name: from
+      in: query
+      description: Inclusive report start timestamp in RFC3339 format
+      schema:
+        type: string
+        format: date-time
+    ReportTo:
+      name: to
+      in: query
+      description: Exclusive report end timestamp in RFC3339 format
+      schema:
+        type: string
+        format: date-time
 
   responses:
     BadRequest:
@@ -404,6 +911,12 @@ components:
             $ref: "#/components/schemas/ErrorResponse"
     Unauthorized:
       description: Missing, invalid, or expired access token
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: Insufficient permissions
       content:
         application/json:
           schema:
@@ -768,6 +1281,285 @@ components:
                 meta:
                   $ref: "#/components/schemas/PaginationMeta"
 
+    CreateSaleRequest:
+      type: object
+      required: [items]
+      properties:
+        customer:
+          $ref: "#/components/schemas/SaleCustomer"
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/CreateSaleItem"
+        discount:
+          type: number
+          format: double
+          minimum: 0
+        channel:
+          type: string
+          enum: [in_store, whatsapp, facebook]
+          default: in_store
+        notes:
+          type: string
+        payment:
+          $ref: "#/components/schemas/CreateSalePayment"
+
+    CreateSaleItem:
+      type: object
+      required: [productId, variantId, quantity]
+      properties:
+        productId:
+          $ref: "#/components/schemas/ObjectID"
+        variantId:
+          $ref: "#/components/schemas/ObjectID"
+        quantity:
+          type: integer
+          minimum: 1
+        discount:
+          type: number
+          format: double
+          minimum: 0
+
+    CreateSalePayment:
+      type: object
+      properties:
+        method:
+          type: string
+          enum: [cash, wave, orange_money, bank_transfer]
+          default: cash
+        status:
+          type: string
+          enum: [pending, completed, failed]
+          default: pending
+        reference:
+          type: string
+
+    SaleCustomer:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/ObjectID"
+        name:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+          format: email
+
+    SaleItem:
+      type: object
+      properties:
+        productId:
+          $ref: "#/components/schemas/ObjectID"
+        variantId:
+          $ref: "#/components/schemas/ObjectID"
+        productName:
+          type: string
+        sku:
+          type: string
+        specs:
+          $ref: "#/components/schemas/VariantSpecs"
+        quantity:
+          type: integer
+        unitPrice:
+          type: number
+          format: double
+        discount:
+          type: number
+          format: double
+        total:
+          type: number
+          format: double
+
+    SalePayment:
+      type: object
+      properties:
+        method:
+          type: string
+          enum: [cash, wave, orange_money, bank_transfer]
+        status:
+          type: string
+          enum: [pending, completed, failed]
+        paidAt:
+          type: string
+          format: date-time
+        reference:
+          type: string
+
+    Sale:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/ObjectID"
+        companyId:
+          $ref: "#/components/schemas/ObjectID"
+        invoiceNumber:
+          type: string
+        status:
+          type: string
+          enum: [draft, confirmed, paid, cancelled, refunded]
+        customer:
+          $ref: "#/components/schemas/SaleCustomer"
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/SaleItem"
+        subtotal:
+          type: number
+          format: double
+        discount:
+          type: number
+          format: double
+        taxAmount:
+          type: number
+          format: double
+        total:
+          type: number
+          format: double
+        currency:
+          type: string
+          example: XOF
+        payment:
+          $ref: "#/components/schemas/SalePayment"
+        channel:
+          type: string
+          enum: [in_store, whatsapp, facebook]
+        notes:
+          type: string
+        createdBy:
+          $ref: "#/components/schemas/ObjectID"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    UpdateSaleStatusRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [confirmed, paid, cancelled, refunded]
+        reference:
+          type: string
+
+    SaleDashboard:
+      type: object
+      properties:
+        totalSales:
+          type: integer
+        draftSales:
+          type: integer
+        confirmedSales:
+          type: integer
+        paidSales:
+          type: integer
+        cancelledSales:
+          type: integer
+        refundedSales:
+          type: integer
+        grossRevenue:
+          type: number
+          format: double
+        discounts:
+          type: number
+          format: double
+        taxAmount:
+          type: number
+          format: double
+        averageOrderValue:
+          type: number
+          format: double
+        byPaymentMethod:
+          type: array
+          items:
+            $ref: "#/components/schemas/SaleDimensionMetric"
+        byChannel:
+          type: array
+          items:
+            $ref: "#/components/schemas/SaleDimensionMetric"
+        topProducts:
+          type: array
+          items:
+            $ref: "#/components/schemas/SaleProductMetric"
+        dailyRevenue:
+          type: array
+          items:
+            $ref: "#/components/schemas/SaleDailyMetric"
+
+    SaleDimensionMetric:
+      type: object
+      properties:
+        key:
+          type: string
+        count:
+          type: integer
+        amount:
+          type: number
+          format: double
+
+    SaleProductMetric:
+      type: object
+      properties:
+        productId:
+          $ref: "#/components/schemas/ObjectID"
+        sku:
+          type: string
+        name:
+          type: string
+        quantity:
+          type: integer
+        revenue:
+          type: number
+          format: double
+
+    SaleDailyMetric:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        count:
+          type: integer
+        amount:
+          type: number
+          format: double
+
+    SaleResponse:
+      allOf:
+        - $ref: "#/components/schemas/ApiResponse"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/Sale"
+
+    SaleListResponse:
+      allOf:
+        - $ref: "#/components/schemas/ApiResponse"
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/Sale"
+                meta:
+                  $ref: "#/components/schemas/PaginationMeta"
+
+    SaleDashboardResponse:
+      allOf:
+        - $ref: "#/components/schemas/ApiResponse"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/SaleDashboard"
+
     PaginationMeta:
       type: object
       properties:
@@ -779,6 +1571,312 @@ components:
           type: integer
         totalPages:
           type: integer
+
+    Stock:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/ObjectID"
+        companyId:
+          $ref: "#/components/schemas/ObjectID"
+        productId:
+          $ref: "#/components/schemas/ObjectID"
+        variantId:
+          $ref: "#/components/schemas/ObjectID"
+        quantity:
+          type: integer
+        reserved:
+          type: integer
+        available:
+          type: integer
+        threshold:
+          type: integer
+        location:
+          type: string
+        lastMovement:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    StockMovement:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/ObjectID"
+        companyId:
+          $ref: "#/components/schemas/ObjectID"
+        productId:
+          $ref: "#/components/schemas/ObjectID"
+        variantId:
+          $ref: "#/components/schemas/ObjectID"
+        type:
+          type: string
+          enum: [IN, OUT, RETURN, ADJUSTMENT]
+        quantity:
+          type: integer
+        quantityBefore:
+          type: integer
+        quantityAfter:
+          type: integer
+        reason:
+          type: string
+        reference:
+          type: string
+        performedBy:
+          $ref: "#/components/schemas/ObjectID"
+        createdAt:
+          type: string
+          format: date-time
+
+    StockRequestItem:
+      type: object
+      required: [productId, variantId, quantity]
+      properties:
+        productId:
+          $ref: "#/components/schemas/ObjectID"
+        variantId:
+          $ref: "#/components/schemas/ObjectID"
+        quantity:
+          type: integer
+          minimum: 1
+        serialNumbers:
+          type: array
+          items:
+            type: string
+          deprecated: true
+        location:
+          type: string
+
+    CreateStockRequest:
+      type: object
+      required: [type, items, reason]
+      properties:
+        type:
+          type: string
+          enum: [INBOUND, OUTBOUND]
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/StockRequestItem"
+        reason:
+          type: string
+        reference:
+          type: string
+
+    MoveStockRequest:
+      type: object
+      required: [type, quantity, reason]
+      properties:
+        type:
+          type: string
+          enum: [IN, OUT, RETURN, ADJUSTMENT]
+        quantity:
+          type: integer
+          minimum: 1
+          description: For ADJUSTMENT, this is the target physical quantity.
+        reason:
+          type: string
+        reference:
+          type: string
+        serialNumbers:
+          type: array
+          items:
+            type: string
+          deprecated: true
+
+    StockRequest:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/ObjectID"
+        companyId:
+          $ref: "#/components/schemas/ObjectID"
+        type:
+          type: string
+          enum: [INBOUND, OUTBOUND]
+        status:
+          type: string
+          enum: [pending, approved, processing, completed, cancelled, rejected]
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/StockRequestItem"
+        reason:
+          type: string
+        reference:
+          type: string
+        requestedBy:
+          $ref: "#/components/schemas/ObjectID"
+        approvedBy:
+          $ref: "#/components/schemas/ObjectID"
+        completedBy:
+          $ref: "#/components/schemas/ObjectID"
+        approvedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    StockDashboard:
+      type: object
+      properties:
+        totalVariants:
+          type: integer
+        totalQuantity:
+          type: integer
+        totalReserved:
+          type: integer
+        totalAvailable:
+          type: integer
+        outOfStockVariants:
+          type: integer
+        lowStockVariants:
+          type: integer
+        inboundQuantity:
+          type: integer
+        outboundQuantity:
+          type: integer
+        recentMovements:
+          type: array
+          items:
+            $ref: "#/components/schemas/StockMovement"
+
+    StockView:
+      type: object
+      properties:
+        stock:
+          $ref: "#/components/schemas/Stock"
+        product:
+          $ref: "#/components/schemas/StockProductView"
+        variant:
+          $ref: "#/components/schemas/Variant"
+
+    StockProductView:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/ObjectID"
+        name:
+          type: string
+        brand:
+          type: string
+        category:
+          type: string
+        images:
+          type: array
+          items:
+            type: string
+            format: uri
+
+    StockListResponse:
+      allOf:
+        - $ref: "#/components/schemas/ApiResponse"
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                stocks:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/StockView"
+                total:
+                  type: integer
+                page:
+                  type: integer
+                limit:
+                  type: integer
+                totalPages:
+                  type: integer
+
+    StockResponse:
+      allOf:
+        - $ref: "#/components/schemas/ApiResponse"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/StockView"
+
+    StockDashboardResponse:
+      allOf:
+        - $ref: "#/components/schemas/ApiResponse"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/StockDashboard"
+
+    StockMovementListResponse:
+      allOf:
+        - $ref: "#/components/schemas/ApiResponse"
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                movements:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/StockMovement"
+                total:
+                  type: integer
+                page:
+                  type: integer
+                limit:
+                  type: integer
+                totalPages:
+                  type: integer
+
+    StockMoveResponse:
+      allOf:
+        - $ref: "#/components/schemas/ApiResponse"
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                stock:
+                  $ref: "#/components/schemas/Stock"
+                movement:
+                  $ref: "#/components/schemas/StockMovement"
+
+    StockRequestResponse:
+      allOf:
+        - $ref: "#/components/schemas/ApiResponse"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/StockRequest"
+
+    StockRequestListResponse:
+      allOf:
+        - $ref: "#/components/schemas/ApiResponse"
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                requests:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/StockRequest"
+                total:
+                  type: integer
+                page:
+                  type: integer
+                limit:
+                  type: integer
+                totalPages:
+                  type: integer
 
     UploadFile:
       type: object
