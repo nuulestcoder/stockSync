@@ -60,12 +60,28 @@ func main() {
 	companyRepository := repository.NewCompanyRepository(mongo.Database())
 	userRepository := repository.NewUserRepository(mongo.Database())
 	productRepository := repository.NewProductRepository(mongo.Database())
+	stockRepository := repository.NewStockRepository(mongo.Database())
+	stockMovementRepository := repository.NewStockMovementRepository(mongo.Database())
+	stockRequestRepository := repository.NewStockRequestRepository(mongo.Database())
+	saleRepository := repository.NewSaleRepository(mongo.Database())
 	indexContext, indexCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	if err := repository.EnsureProductIndexes(indexContext, mongo.Database()); err != nil {
 		indexCancel()
 		log.Fatalf("Failed to create product indexes: %v", err)
 	}
 	indexCancel()
+	stockIndexContext, stockIndexCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	if err := repository.EnsureStockIndexes(stockIndexContext, mongo.Database()); err != nil {
+		stockIndexCancel()
+		saleIndexContext, saleIndexCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		if err := repository.EnsureSaleIndexes(saleIndexContext, mongo.Database()); err != nil {
+			saleIndexCancel()
+			log.Fatalf("Failed to create sale indexes: %v", err)
+		}
+		saleIndexCancel()
+		log.Fatalf("Failed to create stock indexes: %v", err)
+	}
+	stockIndexCancel()
 	authService := service.NewAuthService(companyRepository, userRepository, mongo.Client(), service.JWTConfig{
 		AccessSecret: cfg.JWT.AccessSecret, RefreshSecret: cfg.JWT.RefreshSecret,
 		AccessTTL: cfg.JWT.AccessTTL, RefreshTTL: cfg.JWT.RefreshTTL,
@@ -73,6 +89,10 @@ func main() {
 	authHandler := handler.NewAuthHandler(authService)
 	productService := service.NewProductService(productRepository)
 	productHandler := handler.NewProductHandler(productService)
+	stockService := service.NewStockService(productRepository, stockRepository, stockMovementRepository, stockRequestRepository)
+	stockHandler := handler.NewStockHandler(stockService)
+	saleService := service.NewSaleService(saleRepository, productRepository, companyRepository, stockRepository, stockMovementRepository)
+	saleHandler := handler.NewSaleHandler(saleService)
 	uploadHandler := handler.NewUploadHandler(uploadStore)
 
 	// Create router
@@ -86,6 +106,8 @@ func main() {
 	setupRoutes(router)
 	routes.SetupAuthRoutes(router, authHandler)
 	routes.SetupProductRoutes(router, productHandler, cfg.JWT.AccessSecret)
+	routes.SetupStockRoutes(router, stockHandler, cfg.JWT.AccessSecret)
+	routes.SetupSaleRoutes(router, saleHandler, cfg.JWT.AccessSecret)
 	routes.SetupUploadRoutes(router, uploadHandler, cfg.JWT.AccessSecret)
 
 	// Create server
